@@ -25,12 +25,6 @@ const userSchema = mongoose.Schema(
     phone: { 
       type: String 
     },
-    otp: {
-      type: String,
-    },
-    otpExpires: {
-      type: Date,
-    },
     shippingAddress: {
       address: { type: String },
       city: { type: String },

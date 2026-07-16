@@ -117,4 +117,13 @@ const toggleWishlist = asyncHandler(async (req, res) => {
   }
 });
 
-module.exports = { authUser, registerUser, getUserProfile, updateUserProfile, logoutUser, getWishlist, toggleWishlist, googleAuthUser };
+module.exports = { 
+  authUser, 
+  registerUser, 
+  getUserProfile, 
+  updateUserProfile, 
+  logoutUser, 
+  getWishlist, 
+  toggleWishlist, 
+  googleAuthUser
+};

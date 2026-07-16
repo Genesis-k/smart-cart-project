@@ -42,6 +42,10 @@ const Header = () => {
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
   );
 
+  const StoreIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+  );
+
   return (
     <header className="header" style={{ paddingBottom: '0', backgroundColor: '#2c3e50', borderBottom: 'none' }}>
       <div style={{ width: '100%', padding: '0 30px', margin: '0 auto' }}>
@@ -61,14 +65,18 @@ const Header = () => {
             {/* CENTER: Hello User */}
             <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
                {userInfo && (
-                  <Link to="/profile" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: '#fff', fontWeight: 'bold' }}>
+                  <Link 
+                    to={userInfo.isAdmin ? "/admin/analysis" : "/profile"} 
+                    onClick={closeMenu} 
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', color: '#fff', fontWeight: 'bold' }}
+                  >
                     <UserIcon />
                     <span>Hello, {userInfo.name.split(' ')[0]}</span>
                   </Link>
                )}
             </div>
 
-            {/* RIGHT: Admin Dropdown, Cart, Logout */}
+            {/* RIGHT: Admin Dropdown, Cart/Storefront, Logout */}
             <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '25px' }}>
                 
                 {/* Admin Dashboard Dropdown */}
@@ -89,32 +97,42 @@ const Header = () => {
                   </div>
                 )}
 
-                {/* CART LINK - Swapped to appear before Logout */}
-                <Link to="/cart" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none', color: '#fff' }}>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <CartIcon />
-                    {cartItems.length > 0 && (
-                      <span style={{
-                        position: 'absolute',
-                        top: '-8px',
-                        right: '-10px',
-                        backgroundColor: '#e74c3c',
-                        color: 'white',
-                        borderRadius: '50%',
-                        width: '18px',
-                        height: '18px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.7rem',
-                        fontWeight: 'bold'
-                      }}>
-                        {cartItems.reduce((acc, item) => acc + item.qty, 0)}
-                      </span>
-                    )}
-                  </div>
-                  <span>Cart</span>
-                </Link>
+                {/* CONDITION 1: REGULAR USER - Show Shopping Cart */}
+                {(!userInfo || !userInfo.isAdmin) && (
+                  <Link to="/cart" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none', color: '#fff' }}>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <CartIcon />
+                      {cartItems.length > 0 && (
+                        <span style={{
+                          position: 'absolute',
+                          top: '-8px',
+                          right: '-10px',
+                          backgroundColor: '#e74c3c',
+                          color: 'white',
+                          borderRadius: '50%',
+                          width: '18px',
+                          height: '18px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.7rem',
+                          fontWeight: 'bold'
+                        }}>
+                          {cartItems.reduce((acc, item) => acc + item.qty, 0)}
+                        </span>
+                      )}
+                    </div>
+                    <span>Cart</span>
+                  </Link>
+                )}
+
+                {/* CONDITION 2: ADMIN USER - Show Storefront / Go Back */}
+                {userInfo && userInfo.isAdmin && (
+                  <Link to="/" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none', color: '#fff', fontWeight: 'bold' }}>
+                    <StoreIcon />
+                    <span>Storefront</span>
+                  </Link>
+                )}
 
                 {/* Logout / Login (Furthest right) */}
                 {userInfo ? (
