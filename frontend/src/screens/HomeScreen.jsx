@@ -8,6 +8,7 @@ import ProductCarousel from '../components/ProductCarousel'; // Ensure this is i
 import QuickViewModal from '../components/QuickViewModal';
 import { addToCart } from '../slices/cartSlice';
 
+
 const HomeScreen = () => {
   const [products, setProducts] = useState([]);
   const [page, setPage] = useState(1);

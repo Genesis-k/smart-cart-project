@@ -29,6 +29,7 @@ app.use('/api/mpesa', mpesaRoutes);
 app.use('/api/upload', uploadRoutes); // The upload endpoint
 app.use('/api/banner', bannerRoutes);
 
+
 // --- 2. Make Uploads Folder Static ---
 // This allows the browser to open http://localhost:5000/uploads/image.jpg
 const dirname = path.resolve();
@@ -45,6 +46,9 @@ if (process.env.NODE_ENV === 'production') {
     res.send('API is running...');
   });
 }
+app.get('/api/config/paypal', (req, res) => 
+  res.send({ clientId: process.env.PAYPAL_CLIENT_ID })
+);
 
 const PORT = process.env.PORT || 5000;
 

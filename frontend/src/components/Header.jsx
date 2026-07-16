@@ -7,10 +7,10 @@ import { clearCartItems } from '../slices/cartSlice';
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showFootwearMenu, setShowFootwearMenu] = useState(false);
-  // NEW: State for Admin Dropdown
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   
-  const { cartItems } = useSelector((state) => state.cart);
+  const cart = useSelector((state) => state.cart);
+  const { cartItems } = cart;
   const { userInfo } = useSelector((state) => state.auth);
   
   const dispatch = useDispatch();
@@ -26,7 +26,7 @@ const Header = () => {
   const closeMenu = () => {
     setIsMenuOpen(false);
     setShowFootwearMenu(false);
-    setShowAdminMenu(false); // Close admin menu on click
+    setShowAdminMenu(false);
   };
 
   // Inline SVG Icons
@@ -55,7 +55,6 @@ const Header = () => {
               <Link to="/" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none', color: '#fff' }}>
                 <img src="/vivo-logo.svg" alt="VF" style={{ height: '40px', width: '40px' }} />
                 <span style={{ fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '1px' }}>Vivo Fashion</span>
-
               </Link>
             </div>
 
@@ -69,9 +68,10 @@ const Header = () => {
                )}
             </div>
 
-            {/* RIGHT: Admin Dropdown, Logout, Cart (Furthest right) */}
+            {/* RIGHT: Admin Dropdown, Cart, Logout */}
             <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '25px' }}>
-                {/* NEW: Admin Dashboard Dropdown */}
+                
+                {/* Admin Dashboard Dropdown */}
                 {userInfo && userInfo.isAdmin && (
                   <div style={{ position: 'relative' }} onMouseEnter={() => setShowAdminMenu(true)} onMouseLeave={() => setShowAdminMenu(false)}>
                     <span style={{ color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 'bold' }} onClick={() => setShowAdminMenu(!showAdminMenu)}>
@@ -89,18 +89,34 @@ const Header = () => {
                   </div>
                 )}
 
-                {/* Cart - Pushed to the furthest end */}
-                <Link to="/cart" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none', color: '#fff', fontWeight: 'bold' }}>
-                  <CartIcon />
-                  <span>Cart</span>
-                  {cartItems.length > 0 && (
-                      <span style={{ background: '#e74c3c', color: 'white', borderRadius: '50%', padding: '2px 6px', fontSize: '0.8rem', marginLeft: '5px' }}>
-                      {cartItems.reduce((a, c) => a + c.qty, 0)}
+                {/* CART LINK - Swapped to appear before Logout */}
+                <Link to="/cart" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none', color: '#fff' }}>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <CartIcon />
+                    {cartItems.length > 0 && (
+                      <span style={{
+                        position: 'absolute',
+                        top: '-8px',
+                        right: '-10px',
+                        backgroundColor: '#e74c3c',
+                        color: 'white',
+                        borderRadius: '50%',
+                        width: '18px',
+                        height: '18px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.7rem',
+                        fontWeight: 'bold'
+                      }}>
+                        {cartItems.reduce((acc, item) => acc + item.qty, 0)}
                       </span>
-                  )}
+                    )}
+                  </div>
+                  <span>Cart</span>
                 </Link>
 
-                {/* Logout / Login */}
+                {/* Logout / Login (Furthest right) */}
                 {userInfo ? (
                   <button onClick={logoutHandler} style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#fff', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1rem', padding: 0 }}>
                     <LogoutIcon />
@@ -112,8 +128,8 @@ const Header = () => {
                     <span>Sign In</span>
                   </Link>
                 )}
-            </div>
 
+            </div>
           </div>
 
           {/* ROW 2: Categories */}

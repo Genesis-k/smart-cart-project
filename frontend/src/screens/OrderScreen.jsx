@@ -1,225 +1,251 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import { PayPalButtons, usePayPalScriptReducer } from '@paypal/react-paypal-js';
 import axios from 'axios';
+import BackButton from '../components/BackButton';
 
 const OrderScreen = () => {
   const { id: orderId } = useParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [loadingPay, setLoadingPay] = useState(false);
-  const [loadingDeliver, setLoadingDeliver] = useState(false);
 
   const { userInfo } = useSelector((state) => state.auth);
+  const [{ isPending }, paypalDispatch] = usePayPalScriptReducer();
 
+  // Fetch the Order from the database
   const fetchOrder = async () => {
     try {
-      const { data } = await axios.get(`/api/orders/${orderId}`);
+      const config = { headers: { Authorization: `Bearer ${userInfo.token}` } };
+      const { data } = await axios.get(`/api/orders/${orderId}`, config);
       setOrder(data);
       setLoading(false);
     } catch (err) {
-      setError(err.response && err.response.data.message ? err.response.data.message : err.message);
+      setError(err.response?.data?.message || err.message);
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (!order || order._id !== orderId) {
-      fetchOrder();
-    }
-  }, [order, orderId]);
+    fetchOrder();
+  }, [orderId]);
 
-  const successPaymentHandler = async () => {
-    try {
-      setLoadingPay(true);
-      const { data } = await axios.post('/api/mpesa/stkpush', {
-        phoneNumber: order.shippingAddress.phone,
-        amount: order.totalPrice,
-        orderId: order._id
-      });
-      setLoadingPay(false);
-      
-      if (data.ResponseCode === "0") {
-         alert(`STK Push Sent to ${order.shippingAddress.phone}. Please enter your PIN.`);
-      } else {
-         alert("Failed to send M-Pesa prompt.");
+  // Load PayPal Script dynamically
+  useEffect(() => {
+    const loadPayPalScript = async () => {
+      try {
+        const { data: { clientId } } = await axios.get('/api/config/paypal');
+        paypalDispatch({
+          type: 'resetOptions',
+          value: {
+            'client-id': clientId,
+            currency: 'USD',
+          },
+        });
+        paypalDispatch({ type: 'setLoadingStatus', value: 'pending' });
+      } catch (err) {
+        console.error("Failed to load PayPal Client ID");
       }
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-      setLoadingPay(false);
+    };
+
+    if (order && !order.isPaid) {
+      if (!window.paypal) {
+        loadPayPalScript();
+      }
     }
+  }, [order, paypalDispatch]);
+
+
+  // Handle successful PayPal payment
+  const onApprovePayment = async (data, actions) => {
+    return actions.order.capture().then(async (details) => {
+      try {
+        const config = { 
+          headers: { 
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userInfo.token}` 
+          } 
+        };
+        // Tell your backend the order is paid
+        await axios.put(`/api/orders/${orderId}/pay`, details, config);
+        alert('Payment Successful!');
+        fetchOrder(); // Reload order to show "Paid" status
+      } catch (err) {
+        alert('Error updating payment status on server.');
+      }
+    });
   };
 
-  const deliverHandler = async () => {
-    try {
-      setLoadingDeliver(true);
-      await axios.put(`/api/orders/${order._id}/deliver`);
-      setLoadingDeliver(false);
-      fetchOrder(); 
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-      setLoadingDeliver(false);
-    }
-  };
-
-  const undeliverHandler = async () => {
-    try {
-      setLoadingDeliver(true);
-      await axios.put(`/api/orders/${order._id}/undeliver`);
-      setLoadingDeliver(false);
-      fetchOrder(); 
-    } catch (err) {
-      alert(err.response?.data?.message || err.message);
-      setLoadingDeliver(false);
-    }
-  };
-
-  if (loading) return <h2>Loading...</h2>;
+  if (loading) return <h2>Loading Order...</h2>;
   if (error) return <h2 style={{ color: 'red' }}>{error}</h2>;
 
-  const step1 = true;
-  const step2 = order.isPaid;
-  const step3 = order.isDelivered;
+  // Handle M-Pesa Payment Initiation
+  const payWithMpesaHandler = async () => {
+    const formattedPhone = order.user.phone || order.shippingAddress.phone || '';
+    const config = {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${userInfo.token}`,
+      },
+    };
+
+    alert(`Initiating M-Pesa payment for KSh ${order.totalPrice} to your phone...`);
+
+    try {
+      const { data } = await axios.post(
+        '/api/mpesa/stkpush',
+        {
+          amount: order.totalPrice,
+          phone: formattedPhone,
+          orderId: order._id,
+        },
+        config
+      );
+      console.log(data);
+    } catch (err) {
+      console.error(err);
+      alert('M-Pesa payment failed.');
+    }
+  };
 
   return (
-    <div>
-      {/* 4. BACK BUTTON & TITLE */}
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', gap: '20px' }}>
-        {/* Changed from /profile to / for "Continue Shopping" behavior */}
-        <Link to="/" className='btn-light' style={{ textDecoration: 'none', color: '#333', border: '1px solid #ccc', padding: '5px 15px', borderRadius: '5px' }}>
-          ← Continue Shopping
-        </Link>
-        {/* 1. ORDER NUMBER AT TOP */}
-        <h1 style={{ margin: 0 }}>Order {order._id}</h1>
-      </div>
+    <>
+      <BackButton />
+      <h1 style={{ marginBottom: '30px' }}>Order {order._id}</h1>
 
-      {/* 2. TRACKING STATUS (Full Width Below Title) */}
-      <div style={{ marginBottom: '30px', padding: '20px', border: '1px solid #e0e0e0', borderRadius: '8px', background: '#fff' }}>
-          <h3 style={{ marginBottom: '20px' }}>Tracking Status</h3>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', margin: '0 20px' }}>
-              <div style={{ position: 'absolute', top: '15px', left: 0, width: '100%', height: '4px', background: '#eee', zIndex: 0 }}></div>
-              <div style={{ 
-                  position: 'absolute', top: '15px', left: 0, width: step3 ? '100%' : step2 ? '50%' : '0%', height: '4px', background: '#28a745', zIndex: 0, transition: 'width 0.5s ease-in-out'
-              }}></div>
-
-              <div style={{ zIndex: 1, textAlign: 'center', background: '#fff', padding: '0 5px' }}>
-                  <div style={{ width: '35px', height: '35px', borderRadius: '50%', background: '#28a745', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', fontWeight: 'bold' }}>✓</div>
-                  <div style={{ marginTop: '5px', fontSize: '0.9rem' }}>Placed</div>
-              </div>
-
-              <div style={{ zIndex: 1, textAlign: 'center', background: '#fff', padding: '0 5px' }}>
-                  <div style={{ width: '35px', height: '35px', borderRadius: '50%', background: step2 ? '#28a745' : '#eee', color: step2 ? '#fff' : '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', fontWeight: 'bold' }}>{step2 ? '✓' : '2'}</div>
-                  <div style={{ marginTop: '5px', fontSize: '0.9rem' }}>Processing</div>
-              </div>
-
-              <div style={{ zIndex: 1, textAlign: 'center', background: '#fff', padding: '0 5px' }}>
-                  <div style={{ width: '35px', height: '35px', borderRadius: '50%', background: step3 ? '#28a745' : '#eee', color: step3 ? '#fff' : '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', fontWeight: 'bold' }}>{step3 ? '✓' : '3'}</div>
-                  <div style={{ marginTop: '5px', fontSize: '0.9rem' }}>Delivered</div>
-              </div>
-          </div>
-          <div style={{ textAlign: 'center', marginTop: '20px', fontWeight: 'bold', fontSize: '1.1rem' }}>
-              Current Status: <span style={{ color: '#28a745' }}>{order.isDelivered ? "Package Delivered" : order.isPaid ? "Payment Received" : "Waiting for Payment"}</span>
-          </div>
-      </div>
-
-      {/* 3. COLUMNS: DETAILS LEFT, SUMMARY RIGHT */}
-      <div className="row">
-        {/* LEFT SIDE: Info & Items */}
-        <div className="col" style={{ flex: '2', paddingRight: '20px' }}>
+      <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+        
+        {/* LEFT SIDE: Order Details */}
+        <div style={{ flex: '2 1 60%', minWidth: '300px' }}>
           
-          <div style={{ marginBottom: '20px', borderBottom: '1px solid #ccc', paddingBottom: '10px' }}>
-            <h3>Shipping Details</h3>
-            <p><strong>Name: </strong> {order.user?.name}</p>
-            <p><strong>Email: </strong> <a href={`mailto:${order.user?.email}`}>{order.user?.email}</a></p>
-            <p><strong>Address: </strong> {order.shippingAddress.address}, {order.shippingAddress.city}</p>
-            <p><strong>Phone: </strong> {order.shippingAddress.phone}</p>
+          <div style={{ marginBottom: '30px', paddingBottom: '20px', borderBottom: '1px solid #eee' }}>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '15px' }}>Shipping</h2>
+            <p><strong>Name:</strong> {order.user.name}</p>
+            <p><strong>Email:</strong> <a href={`mailto:${order.user.email}`}>{order.user.email}</a></p>
+            <p>
+              <strong>Address:</strong> {order.shippingAddress.address}, {order.shippingAddress.city}, {order.shippingAddress.postalCode}, {order.shippingAddress.country}
+            </p>
+            {order.isDelivered ? (
+              <div style={{ padding: '15px', background: '#d4edda', color: '#155724', borderRadius: '5px' }}>Delivered on {order.deliveredAt.substring(0, 10)}</div>
+            ) : (
+              <div style={{ padding: '15px', background: '#f8d7da', color: '#721c24', borderRadius: '5px' }}>Not Delivered</div>
+            )}
           </div>
 
-          <div style={{ marginBottom: '20px', borderBottom: '1px solid #ccc', paddingBottom: '10px' }}>
-            <h3>Payment Method</h3>
-            <p><strong>Method: </strong> {order.paymentMethod}</p>
+          <div style={{ marginBottom: '30px', paddingBottom: '20px', borderBottom: '1px solid #eee' }}>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '15px' }}>Payment Method</h2>
+            <p><strong>Method:</strong> {order.paymentMethod}</p>
             {order.isPaid ? (
-               <div style={{ background: '#d4edda', color: '#155724', padding: '10px', borderRadius: '5px' }}>Paid on {order.paidAt.substring(0, 10)}</div>
+              <div style={{ padding: '15px', background: '#d4edda', color: '#155724', borderRadius: '5px' }}>Paid on {order.paidAt.substring(0, 10)}</div>
             ) : (
-               <div style={{ background: '#f8d7da', color: '#721c24', padding: '10px', borderRadius: '5px' }}>Not Paid</div>
+              <div style={{ padding: '15px', background: '#f8d7da', color: '#721c24', borderRadius: '5px' }}>Not Paid</div>
             )}
           </div>
 
           <div>
-            <h3>Order Items</h3>
-            {order.orderItems.length === 0 ? (
-              <p>Order is empty</p>
-            ) : (
-              <div>
-                {order.orderItems.map((item, index) => (
-                  <div key={index} className="cart-item">
-                    <img src={item.image} alt={item.name} className="cart-image" style={{ width: '50px', height: '50px' }} />
-                    <div className="item-details">
-                      <Link to={`/product/${item.product}`}>{item.name}</Link>
-                    </div>
-                    <div style={{ fontSize: '0.9rem' }}>
-                      {item.qty} x KSh {item.price} = <strong>KSh {item.qty * item.price}</strong>
-                    </div>
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '15px' }}>Order Items</h2>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {order.orderItems.map((item, index) => (
+                <li key={index} style={{ borderBottom: '1px solid #ddd', padding: '15px 0', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                  <div style={{ width: '60px', flexShrink: 0 }}>
+                    <img src={item.image} alt={item.name} style={{ width: '100%', borderRadius: '5px' }} />
                   </div>
-                ))}
-              </div>
-            )}
+                  <div style={{ flex: '2', minWidth: '150px' }}>
+                    <Link to={`/product/${item.product}`} style={{ textDecoration: 'none', color: '#333', fontWeight: 'bold' }}>{item.name}</Link>
+                  </div>
+                  <div style={{ fontWeight: 'bold' }}>
+                    {item.qty} x KSh {item.price} = KSh {item.qty * item.price}
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 
-        {/* RIGHT SIDE: Summary */}
-        <div className="col" style={{ flex: '1' }}>
-          <div className="card" style={{ padding: '20px', border: '1px solid #ddd' }}>
-            <h2>Order Summary</h2>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span>Items</span><span>KSh {order.itemsPrice}</span>
+        {/* RIGHT SIDE: Payment Summary & PayPal Buttons */}
+        <div style={{ flex: '1 1 30%', minWidth: '280px' }}>
+          <div className="card" style={{ padding: '30px', border: '1px solid #e4e5e9', borderRadius: '10px', backgroundColor: '#fafafa' }}>
+            <h2 style={{ fontSize: '1.8rem', marginBottom: '25px', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>Order Summary</h2>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+              <span>Items</span>
+              <span>KSh {order.itemsPrice}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span>Shipping</span><span>KSh {order.shippingPrice}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>
+              <span>Shipping</span>
+              <span>KSh {order.shippingPrice}</span>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span>Tax</span><span>KSh {order.taxPrice}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '25px', fontSize: '1.4rem', fontWeight: '900' }}>
+              <span>Total</span>
+              <span>KSh {order.totalPrice}</span>
             </div>
-            <hr />
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', fontSize: '1.2rem', fontWeight: 'bold' }}>
-              <span>Total</span><span>KSh {order.totalPrice}</span>
-            </div>
-              
-            {/* USER PAYMENT BUTTON */}
-            {!order.isPaid && !userInfo.isAdmin && (
-                <button
-                  className="btn-black"
-                  style={{ width: '100%', padding: '15px', marginBottom: '10px', background: loadingPay ? '#ccc' : '#25D366', color: 'white', border: 'none', cursor: loadingPay ? 'not-allowed' : 'pointer', fontSize: '1.1rem', fontWeight: 'bold' }}
-                  onClick={successPaymentHandler}
-                  disabled={loadingPay}
-                >
-                  {loadingPay ? "Processing..." : "Pay with M-Pesa"}
-                </button>
+
+            {/* PAYPAL COMPONENT RENDERING */}
+{/* CONDITIONAL PAYMENT BUTTONS */}
+            {!order.isPaid && (
+              <div style={{ marginTop: '20px' }}>
+                
+                {/* 1. Show this ONLY if PayPal was selected */}
+                {order.paymentMethod === 'PayPal' && (
+                  isPending ? (
+                    <h4>Loading PayPal...</h4>
+                  ) : (
+                    <PayPalButtons
+                      createOrder={(data, actions) => {
+                        return actions.order.create({
+                          purchase_units: [
+                            {
+                              amount: { value: order.totalPrice }, 
+                            },
+                          ],
+                        });
+                      }}
+                      onApprove={onApprovePayment}
+                    />
+                  )
+                )}
+
+                {/* 2. Show this ONLY if M-Pesa was selected */}
+                {order.paymentMethod === 'M-Pesa' && (
+                  <button 
+                    onClick={payWithMpesaHandler}
+                    style={{
+                      width: '100%',
+                      padding: '15px',
+                      backgroundColor: '#25D366', /* M-Pesa Green */
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '1.2rem',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      transition: 'background-color 0.2s',
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1ebc5a'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#25D366'}
+                  >
+                    Pay with M-Pesa
+                  </button>
+                )}
+
+              </div>
             )}
 
-            {/* ADMIN MESSAGES & BUTTONS */}
-            {!order.isPaid && userInfo.isAdmin && (
-                <div style={{ width: '100%', padding: '15px', marginBottom: '10px', background: '#f8d7da', color: '#721c24', textAlign: 'center', borderRadius: '5px', border: '1px solid #f5c6cb' }}>
-                  Order Not Paid Yet
-                </div>
-            )}
-
+            {/* Admin "Mark as Delivered" Button (Optional) */}
             {userInfo && userInfo.isAdmin && order.isPaid && !order.isDelivered && (
-               <button type="button" className="btn btn-block" style={{ width: '100%', padding: '15px', background: '#000', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '1.1rem' }} onClick={deliverHandler} disabled={loadingDeliver}>
-                 {loadingDeliver ? 'Loading...' : 'Mark As Delivered'}
-               </button>
+              <button 
+                className="btn-black" 
+                style={{ width: '100%', padding: '15px', background: 'black', color: 'white', border: 'none', borderRadius: '5px', marginTop: '20px', cursor: 'pointer' }}
+              >
+                Mark As Delivered
+              </button>
             )}
 
-            {userInfo && userInfo.isAdmin && order.isPaid && order.isDelivered && (
-               <button type="button" className="btn btn-block" style={{ width: '100%', padding: '15px', background: '#dc3545', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '1.1rem', marginTop: '10px' }} onClick={undeliverHandler} disabled={loadingDeliver}>
-                 {loadingDeliver ? 'Loading...' : 'Mark As Not Delivered'}
-               </button>
-            )}
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

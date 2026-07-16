@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 import Product from '../components/Product'; // Reuse Product card or make a simple list
+import BackButton from '../components/BackButton';
 
 const WishlistScreen = () => {
   const [wishlist, setWishlist] = useState([]);

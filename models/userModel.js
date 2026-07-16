@@ -21,6 +21,22 @@ const userSchema = mongoose.Schema(
       required: true,
       default: false,
     },
+    // NEW: Phone and Default Shipping Address
+    phone: { 
+      type: String 
+    },
+    otp: {
+      type: String,
+    },
+    otpExpires: {
+      type: Date,
+    },
+    shippingAddress: {
+      address: { type: String },
+      city: { type: String },
+      postalCode: { type: String },
+      country: { type: String },
+    },
     // NEW: Wishlist Field
     wishlist: [
       {
