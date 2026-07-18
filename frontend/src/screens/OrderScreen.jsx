@@ -175,7 +175,7 @@ const OrderScreen = () => {
                 <strong>What happens next?</strong><br />
                 Your payment has been received and your order is being prepared for dispatch. Please allow <strong>2-3 business days</strong> for delivery.
                 <br /><br />
-                Haven't received your order after this time? Contact our customer care team at <strong>0715377950</strong> or <strong>admin@example.com</strong> and we'll sort it out right away.
+                Haven't received your order after this time? Contact our customer care team at <strong>[PHONE NUMBER]</strong> or <strong>[EMAIL]</strong> and we'll sort it out right away.
               </div>
             )}
           </div>
@@ -217,6 +217,27 @@ const OrderScreen = () => {
         </div>
 
         <div style={{ flex: '1 1 30%', minWidth: '280px' }}>
+          {/* Thank-you message once payment is confirmed - customer view only, not shown to admin */}
+          {order.isPaid && !userInfo?.isAdmin && (
+            <div style={{ padding: '20px', backgroundColor: '#d4edda', border: '1px solid #c3e6cb', borderRadius: '10px', textAlign: 'center', marginBottom: '20px' }}>
+              <p style={{ margin: '0 0 5px 0', fontSize: '1.15rem', fontWeight: 'bold', color: '#155724' }}>
+                🎉 Thank you for shopping with Vivo Fashion!
+              </p>
+              <p style={{ margin: '0 0 15px 0', fontSize: '0.9rem', color: '#155724' }}>
+                Your order is confirmed and being prepared.
+              </p>
+              <Link
+                to="/"
+                style={{
+                  display: 'inline-block', padding: '10px 22px', backgroundColor: '#000', color: '#fff',
+                  borderRadius: '6px', textDecoration: 'none', fontWeight: 'bold', fontSize: '0.95rem',
+                }}
+              >
+                Continue Shopping
+              </Link>
+            </div>
+          )}
+
           <div className="card" style={{ padding: '30px', border: '1px solid #e4e5e9', borderRadius: '10px', backgroundColor: '#fafafa' }}>
             <h2 style={{ fontSize: '1.8rem', marginBottom: '25px', borderBottom: '2px solid #eee', paddingBottom: '10px' }}>Order Summary</h2>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px' }}>

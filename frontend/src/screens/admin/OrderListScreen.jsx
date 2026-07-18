@@ -50,6 +50,7 @@ const AdminOrderListScreen = () => {
               <th style={styles.th}>Customer</th>
               <th style={styles.th}>Date</th>
               <th style={styles.th}>Total</th>
+              <th style={styles.th}>Delivery Location</th>
               <th style={styles.th}>Paid</th>
               <th style={styles.th}>Delivered</th>
               <th style={styles.th}></th>
@@ -67,6 +68,11 @@ const AdminOrderListScreen = () => {
                   <td style={styles.td}>{order.user?.name || 'Unknown'}</td>
                   <td style={styles.td}>{order.createdAt?.substring(0, 10)}</td>
                   <td style={styles.td}>KSh {order.totalPrice}</td>
+                  <td style={styles.td}>
+                    {order.shippingAddress
+                      ? `${order.shippingAddress.address}, ${order.shippingAddress.city}`
+                      : 'N/A'}
+                  </td>
                   <td style={styles.td}>
                     {order.isPaid ? (
                       <span style={styles.badgeSuccess}>Paid</span>
