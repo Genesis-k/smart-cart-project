@@ -50,6 +50,11 @@ const router = createBrowserRouter(
       <Route path='/page/:pageNumber' element={<HomeScreen />} />
       <Route path='/search/:keyword' element={<HomeScreen />} />
       <Route path='/search/:keyword/page/:pageNumber' element={<HomeScreen />} />
+      
+      {/* --- NEW CATEGORY / SECTION ROUTES --- */}
+      <Route path='/section/:sectionName' element={<HomeScreen />} />
+      <Route path='/section/:sectionName/page/:pageNumber' element={<HomeScreen />} />
+      
       <Route path='/product/:id' element={<ProductScreen />} />
       <Route path='/cart' element={<CartScreen />} />
       <Route path='/login' element={<LoginScreen />} />

@@ -25,7 +25,7 @@ app.use(cookieParser());
 app.use('/api/products', productRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/orders', orderRoutes);
-app.use('/api/mpesa', mpesaRoutes);
+app.use('/api/payments', mpesaRoutes);
 app.use('/api/upload', uploadRoutes); // The upload endpoint
 app.use('/api/banner', bannerRoutes);
 

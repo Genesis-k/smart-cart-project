@@ -114,7 +114,6 @@ const updateOrderToDelivered = asyncHandler(async (req, res) => {
   if (order) {
     order.isDelivered = true;
     order.deliveredAt = Date.now();
-
     const updatedOrder = await order.save();
     res.json(updatedOrder);
   } else {
@@ -163,6 +162,26 @@ const getMyOrders = asyncHandler(async (req, res) => {
   res.json(orders);
 });
 
+const checkCanReview = asyncHandler(async (req, res) => {
+  const { productId } = req.params;
+
+  const alreadyReviewed = await Product.findOne({
+    _id: productId,
+    'reviews.user': req.user._id,
+  });
+
+  const deliveredOrder = await Order.findOne({
+    user: req.user._id,
+    isDelivered: true,
+    'orderItems.product': productId,
+  });
+
+  res.json({
+    canReview: !!deliveredOrder && !alreadyReviewed,
+    alreadyReviewed: !!alreadyReviewed,
+  });
+});
+
 module.exports = {
   addOrderItems,
   getOrderById,
@@ -171,4 +190,5 @@ module.exports = {
   updateOrderToUnDelivered,
   getOrders,
   getMyOrders,
+  checkCanReview,
 };

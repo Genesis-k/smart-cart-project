@@ -33,6 +33,7 @@ import ProductEditScreen from './screens/admin/ProductEditScreen';
 import AnalysisScreen from './screens/admin/AnalysisScreen';
 import ReviewListScreen from './screens/admin/ReviewListScreen';
 import BannerEditScreen from './screens/admin/BannerEditScreen';
+import AdminPendingOrdersBanner from './components/AdminPendingOrdersBanner';
 
 const App = () => {
   const { userInfo } = useSelector((state) => state.auth);
@@ -41,12 +42,16 @@ const App = () => {
   // Define paths where the search bar should be HIDDEN
   const hideSearchPaths = ['/shipping', '/payment', '/placeorder', '/login', '/register'];
   const isOrderDetailsPage = location.pathname.startsWith('/order/');
-  const shouldShowSearch = userInfo && !hideSearchPaths.includes(location.pathname) && !isOrderDetailsPage;
+  const isAdminRoute = location.pathname.startsWith('/admin'); // <-- NEW CHECK
+
+  // Added !isAdminRoute so the search bar hides on all admin pages
+  const shouldShowSearch = userInfo && !hideSearchPaths.includes(location.pathname) && !isOrderDetailsPage && !isAdminRoute;
 
   return (
     <>
       <DiscountBanner />
       <Header />
+      <AdminPendingOrdersBanner />
       <LoginPopup />
       
       {/* SEARCH BAR SECTION */}
@@ -71,7 +76,7 @@ const App = () => {
             <Route path='/cart' element={<CartScreen />} />
             <Route path='/login' element={<LoginScreen />} />
             <Route path='/register' element={<RegisterScreen />} />
-            
+
             {/* Policies */}
             <Route path='/policy/returns' element={<ReturnPolicyScreen />} />
             <Route path='/policy/privacy' element={<PrivacyPolicyScreen />} />
@@ -105,7 +110,7 @@ const App = () => {
           </Routes>
         </div>
       </main>
-      
+
       <Footer />
     </>
   );

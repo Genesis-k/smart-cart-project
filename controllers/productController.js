@@ -1,8 +1,9 @@
 const asyncHandler = require('express-async-handler');
 const Product = require('../models/productModel');
+const Order = require('../models/orderModel'); // needed for the delivered-order check
 
 // ... Keep getProducts, getProductById, deleteProduct, createProduct, updateProduct ...
-// (I am omitting the existing functions here to save space, but DO NOT DELETE THEM from your file)
+// (unchanged from your version)
 
 const getProducts = asyncHandler(async (req, res) => {
   const pageSize = 8;
@@ -43,32 +44,59 @@ const updateProduct = asyncHandler(async (req, res) => {
   } else { res.status(404); throw new Error('Product not found'); }
 });
 
-// UPDATED: Create new review
+// Helper: recalculate rating/numReviews from APPROVED reviews only.
+// Keeping this in one place means every place that touches reviews stays consistent.
+const recalculateApprovedRating = (product) => {
+  const approved = product.reviews.filter((r) => r.isApproved);
+  product.numReviews = approved.length;
+  product.rating = approved.length
+    ? approved.reduce((acc, r) => acc + r.rating, 0) / approved.length
+    : 0;
+};
+
+// Create new review
 const createProductReview = asyncHandler(async (req, res) => {
   const { rating, comment } = req.body;
   const product = await Product.findById(req.params.id);
 
-  if (product) {
-    const alreadyReviewed = product.reviews.find(
-      (r) => r.user.toString() === req.user._id.toString()
-    );
-    if (alreadyReviewed) { res.status(400); throw new Error('Product already reviewed'); }
+  if (!product) {
+    res.status(404);
+    throw new Error('Product not found');
+  }
 
-    const review = {
-      name: req.user.name,
-      rating: Number(rating),
-      comment,
-      user: req.user._id,
-      isApproved: false, // Default to false
-    };
+  // Prevent duplicate reviews
+  const alreadyReviewed = product.reviews.find(
+    (r) => r.user.toString() === req.user._id.toString()
+  );
+  if (alreadyReviewed) {
+    res.status(400);
+    throw new Error('You already reviewed this product');
+  }
 
-    product.reviews.push(review);
-    product.numReviews = product.reviews.length;
-    product.rating = product.reviews.reduce((acc, item) => item.rating + acc, 0) / product.reviews.length;
+  // Enforce: must have a DELIVERED order containing this product
+  const deliveredOrder = await Order.findOne({
+    user: req.user._id,
+    isDelivered: true,
+    'orderItems.product': product._id,
+  });
+  if (!deliveredOrder) {
+    res.status(400);
+    throw new Error('You can only review products from delivered orders');
+  }
 
-    await product.save();
-    res.status(201).json({ message: 'Review submitted! It will appear after approval.' });
-  } else { res.status(404); throw new Error('Product not found'); }
+  const review = {
+    name: req.user.name,
+    rating: Number(rating),
+    comment,
+    user: req.user._id,
+    // isApproved defaults to false via the schema - new reviews start hidden
+  };
+
+  product.reviews.push(review);
+  recalculateApprovedRating(product); // won't count this new review until it's approved
+
+  await product.save();
+  res.status(201).json({ message: 'Review submitted - pending approval' });
 });
 
 const getTopProducts = asyncHandler(async (req, res) => {
@@ -76,13 +104,12 @@ const getTopProducts = asyncHandler(async (req, res) => {
   res.json(products);
 });
 
-// --- NEW ADMIN REVIEW FUNCTIONS ---
+// --- ADMIN REVIEW FUNCTIONS ---
 
 // @desc    Get ALL reviews from ALL products
 // @route   GET /api/products/reviews/all
 // @access  Private/Admin
 const getAllReviews = asyncHandler(async (req, res) => {
-  // Use aggregation to unwind the reviews array so we get a flat list
   const reviews = await Product.aggregate([
     { $unwind: '$reviews' },
     {
@@ -92,34 +119,37 @@ const getAllReviews = asyncHandler(async (req, res) => {
         review: '$reviews',
       },
     },
-    { $sort: { 'review.createdAt': -1 } } // Newest first
+    { $sort: { 'review.createdAt': -1 } }, // Newest first
   ]);
   res.json(reviews);
 });
 
-// @desc    Approve or Reply to a review
+// @desc    Approve/unapprove or reply to a review
 // @route   PUT /api/products/:id/reviews/:reviewId
 // @access  Private/Admin
 const updateReviewStatus = asyncHandler(async (req, res) => {
   const { isApproved, reply } = req.body;
   const product = await Product.findById(req.params.id);
 
-  if (product) {
-    const review = product.reviews.id(req.params.reviewId);
-    if (review) {
-      if (isApproved !== undefined) review.isApproved = isApproved;
-      if (reply !== undefined) review.reply = reply;
-      
-      await product.save();
-      res.json({ message: 'Review updated' });
-    } else {
-      res.status(404);
-      throw new Error('Review not found');
-    }
-  } else {
+  if (!product) {
     res.status(404);
     throw new Error('Product not found');
   }
+
+  const review = product.reviews.id(req.params.reviewId);
+  if (!review) {
+    res.status(404);
+    throw new Error('Review not found');
+  }
+
+  if (isApproved !== undefined) review.isApproved = isApproved;
+  if (reply !== undefined) review.reply = reply;
+
+  // Recalculate every time, since approving/unapproving changes what counts
+  recalculateApprovedRating(product);
+
+  await product.save();
+  res.json({ message: 'Review updated' });
 });
 
 // @desc    Delete a review
@@ -128,24 +158,19 @@ const updateReviewStatus = asyncHandler(async (req, res) => {
 const deleteReview = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
 
-  if (product) {
-    // Filter out the review to delete
-    product.reviews = product.reviews.filter(
-      (r) => r._id.toString() !== req.params.reviewId.toString()
-    );
-    
-    // Recalculate rating
-    product.numReviews = product.reviews.length;
-    product.rating = product.reviews.length > 0
-      ? product.reviews.reduce((acc, item) => item.rating + acc, 0) / product.reviews.length
-      : 0;
-
-    await product.save();
-    res.json({ message: 'Review deleted' });
-  } else {
+  if (!product) {
     res.status(404);
     throw new Error('Product not found');
   }
+
+  product.reviews = product.reviews.filter(
+    (r) => r._id.toString() !== req.params.reviewId.toString()
+  );
+
+  recalculateApprovedRating(product);
+
+  await product.save();
+  res.json({ message: 'Review deleted' });
 });
 
 module.exports = {
@@ -156,7 +181,7 @@ module.exports = {
   updateProduct,
   createProductReview,
   getTopProducts,
-  getAllReviews, // Export
-  updateReviewStatus, // Export
-  deleteReview, // Export
+  getAllReviews,
+  updateReviewStatus,
+  deleteReview,
 };

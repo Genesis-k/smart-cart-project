@@ -22,7 +22,6 @@ const getAccessToken = async () => {
 
 // 2. Trigger STK Push
 const stkPush = asyncHandler(async (req, res) => {
-  // FIXED: Destructured 'phone' instead of 'phoneNumber' to match your frontend React payload
   const { phone, amount, orderId } = req.body; 
   const token = await getAccessToken();
   
@@ -59,18 +58,18 @@ const stkPush = asyncHandler(async (req, res) => {
     PartyA: formattedPhone, 
     PartyB: shortCode, 
     PhoneNumber: formattedPhone,
-    // Safaricom will send the success/fail data to this exact URL
-    CallBackURL: `${process.env.MPESA_CALLBACK_URL}/api/mpesa/callback/${orderId}`, 
-    AccountReference: `Vivo${cleanOrderId}`, 
+    CallBackURL: `https://aud-becoming-substitute-hygiene.trycloudflare.com/api/payments/callback/${orderId}`, 
+    AccountReference: `Merch${cleanOrderId}`, 
     TransactionDesc: 'Merchandise Payment',
   };
+
+  console.log("PAYLOAD BEING SENT TO SAFARICOM:", data);
 
   try {
     const response = await axios.post(stk_url, data, {
       headers: { Authorization: `Bearer ${token}` },
     });
     
-    // Optional: You could save response.data.CheckoutRequestID to the Order here if you want to track it
     res.json(response.data);
 
   } catch (error) {
@@ -80,48 +79,57 @@ const stkPush = asyncHandler(async (req, res) => {
   }
 });
 
-// 3. Handle Safaricom's Callback (NEW)
 // 3. Handle Safaricom's Callback
-const mpesaCallback = asyncHandler(async (req, res) => {
+// Notice we removed asyncHandler here so we can manually control the response and catch errors without crashing!
+const mpesaCallback = async (req, res) => {
   console.log('--- M-PESA CALLBACK HIT ---');
   
-  const orderId = req.params.id; // Grab the ID from the URL we created
-  const callbackData = req.body.Body.stkCallback;
-  
-  if (callbackData.ResultCode === 0) {
-    // 1. Payment was successful, extract the data
-    const metadata = callbackData.CallbackMetadata.Item;
-    const mpesaReceipt = metadata.find(item => item.Name === 'MpesaReceiptNumber').Value;
-    
-    console.log(`Success! Receipt: ${mpesaReceipt} for Order: ${orderId}`);
-    
-    // 2. Find the Order in MongoDB
-    const order = await Order.findById(orderId);
+  // 1. INSTANTLY respond to Safaricom to prevent reversals!
+  res.status(200).json({
+    ResultCode: 0,
+    ResultDesc: "Success"
+  });
 
-    if (order) {
-      // 3. Update the order to Paid
-      order.isPaid = true;
-      order.paidAt = Date.now();
-      order.paymentResult = {
-        id: mpesaReceipt,
-        status: 'Completed',
-        update_time: Date.now(),
-        email_address: callbackData.MerchantRequestID, // Using this as a reference
-      };
+  // 2. Now process the database update in the background
+  try {
+    const orderId = req.params.id; 
+    const callbackData = req.body.Body.stkCallback;
+    
+    if (callbackData.ResultCode === 0) {
+      // Payment was successful, extract the data
+      const metadata = callbackData.CallbackMetadata.Item;
+      const mpesaReceipt = metadata.find(item => item.Name === 'MpesaReceiptNumber').Value;
+      
+      console.log(`Success! Receipt: ${mpesaReceipt} for Order: ${orderId}`);
+      
+      // Find the Order in MongoDB
+      const order = await Order.findById(orderId);
 
-      await order.save();
-      console.log('Database updated successfully! Order marked as paid.');
+      if (order) {
+        // Update the order to Paid
+        order.isPaid = true;
+        order.paidAt = Date.now();
+        order.paymentResult = {
+          id: mpesaReceipt,
+          status: 'Completed',
+          update_time: Date.now(),
+          email_address: callbackData.MerchantRequestID,
+        };
+
+        await order.save();
+        console.log('Database updated successfully! Order marked as paid.');
+      } else {
+        console.error('Order not found in database!');
+      }
+
     } else {
-      console.error('Order not found in database!');
+      // Customer cancelled, insufficient funds, or timed out.
+      console.log('Payment Failed:', callbackData.ResultDesc);
     }
-
-  } else {
-    // Customer cancelled, insufficient funds, or timed out.
-    console.log('Payment Failed:', callbackData.ResultDesc);
+  } catch (error) {
+    // If the database fails, it logs the error here without crashing the server
+    console.error("Error processing Safaricom database update:", error.message);
   }
-
-  // Always respond to Safaricom with 200 OK immediately
-  res.status(200).json({ message: 'Callback received successfully' });
-});
+};
 
 module.exports = { stkPush, mpesaCallback };

@@ -3,6 +3,23 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
 
+// Edit this list any time to add/remove categories - it's the single source of truth for the dropdown.
+const CATEGORY_OPTIONS = [
+  'Dresses',
+  'Tops & Shirts',
+  'Trousers & Jeans',
+  'Skirts',
+  'Jackets & Coats',
+  'Sportswear',
+  'Shoes',
+  'Bags',
+  'Jewelry & Watches',
+  'Makeup',
+  'Skincare',
+  'Haircare',
+  'Kids Clothing',
+];
+
 const ProductEditScreen = () => {
   const { id: productId } = useParams();
   const navigate = useNavigate();
@@ -15,7 +32,7 @@ const ProductEditScreen = () => {
   const [section, setSection] = useState('Female');
   const [countInStock, setCountInStock] = useState(0);
   const [description, setDescription] = useState('');
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [loadingUpdate, setLoadingUpdate] = useState(false);
@@ -100,9 +117,9 @@ const ProductEditScreen = () => {
       <Link to="/admin/productlist" className="btn-light" style={{ textDecoration: 'none', color: '#555' }}>
         Go Back
       </Link>
-      
+
       <h1>Edit Product</h1>
-      
+
       <form onSubmit={submitHandler}>
         <div style={{ marginBottom: '15px' }}>
           <label>Name</label>
@@ -121,7 +138,6 @@ const ProductEditScreen = () => {
           {uploading && <p>Uploading...</p>}
         </div>
 
-        {/* UPDATED SECTION SELECTOR */}
         <div style={{ marginBottom: '15px' }}>
           <label>Section</label>
           <select
@@ -150,9 +166,24 @@ const ProductEditScreen = () => {
           <input type="number" value={countInStock} onChange={(e) => setCountInStock(e.target.value)} style={{ width: '100%', padding: '10px' }} />
         </div>
 
+        {/* CATEGORY DROPDOWN - replaces the old free-text input */}
         <div style={{ marginBottom: '15px' }}>
           <label>Category</label>
-          <input type="text" value={category} onChange={(e) => setCategory(e.target.value)} style={{ width: '100%', padding: '10px' }} />
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            style={{ width: '100%', padding: '10px', marginTop: '5px' }}
+          >
+            <option value="" disabled>Select a category</option>
+            {CATEGORY_OPTIONS.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+            {/* If this product's saved category isn't in the list above (e.g. older data),
+                show it so editing the product doesn't silently overwrite it */}
+            {category && !CATEGORY_OPTIONS.includes(category) && (
+              <option value={category}>{category} (current)</option>
+            )}
+          </select>
         </div>
 
         <div style={{ marginBottom: '15px' }}>
