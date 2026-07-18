@@ -175,7 +175,7 @@ const OrderScreen = () => {
                 <strong>What happens next?</strong><br />
                 Your payment has been received and your order is being prepared for dispatch. Please allow <strong>2-3 business days</strong> for delivery.
                 <br /><br />
-                Haven't received your order after this time? Contact our customer care team at <strong>[PHONE NUMBER]</strong> or <strong>[EMAIL]</strong> and we'll sort it out right away.
+                Haven't received your order after this time? Contact our customer care team at <strong>0715377950</strong> or <strong>admin@example.com</strong> and we'll sort it out right away.
               </div>
             )}
           </div>
