@@ -58,7 +58,7 @@ const stkPush = asyncHandler(async (req, res) => {
     PartyA: formattedPhone, 
     PartyB: shortCode, 
     PhoneNumber: formattedPhone,
-    CallBackURL: `https://aud-becoming-substitute-hygiene.trycloudflare.com/api/payments/callback/${orderId}`, 
+    CallBackURL: `https://protein-equation-iowa-keen.trycloudflare.com/api/payments/callback/${orderId}`, 
     AccountReference: `Merch${cleanOrderId}`, 
     TransactionDesc: 'Merchandise Payment',
   };

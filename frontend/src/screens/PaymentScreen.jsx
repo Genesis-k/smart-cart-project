@@ -4,6 +4,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import { savePaymentMethod } from '../slices/cartSlice';
 import BackButton from '../components/BackButton';
 
+// Flip this back to true once PayPal has been tested end-to-end
+// (keep in sync with PAYPAL_ENABLED in OrderScreen.jsx).
+const PAYPAL_ENABLED = false;
+
 const PaymentScreen = () => {
   const [paymentMethod, setPaymentMethod] = useState('M-Pesa');
 
@@ -28,14 +32,13 @@ const PaymentScreen = () => {
 
   return (
     <>
-      <BackButton /> {/* 2. Add it here */}
-      <h1>Payment Method</h1>
+      <BackButton />
       <div style={{ maxWidth: '500px', margin: '0 auto', padding: '20px' }}>
         <h1>Payment Method</h1>
         <p style={{ color: '#666', marginBottom: '20px' }}>Select how you want to pay</p>
-        
+
         <form onSubmit={submitHandler}>
-          
+
           {/* M-Pesa Option */}
           <div style={{ marginBottom: '15px', padding: '15px', border: '1px solid #ddd', borderRadius: '5px' }}>
             <input
@@ -54,25 +57,29 @@ const PaymentScreen = () => {
             </div>
           </div>
 
-          {/* PayPal / Card Option */}
-          <div style={{ marginBottom: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '5px' }}>
-            <input
-              type="radio"
-              id="PayPal"
-              label="PayPal or Credit Card"
-              name="paymentMethod"
-              value="PayPal"
-              checked={paymentMethod === 'PayPal'}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              style={{ marginRight: '10px' }}
-            />
-            <label htmlFor="PayPal" style={{ fontWeight: 'bold', color: '#003087' }}>PayPal / Credit Card</label>
-          </div>
+          {/* PayPal / Card Option - hidden until tested. Uncomment the block below
+              and flip PAYPAL_ENABLED to true to bring it back.
+          {PAYPAL_ENABLED && (
+            <div style={{ marginBottom: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '5px' }}>
+              <input
+                type="radio"
+                id="PayPal"
+                label="PayPal or Credit Card"
+                name="paymentMethod"
+                value="PayPal"
+                checked={paymentMethod === 'PayPal'}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                style={{ marginRight: '10px' }}
+              />
+              <label htmlFor="PayPal" style={{ fontWeight: 'bold', color: '#003087' }}>PayPal / Credit Card</label>
+            </div>
+          )}
+          */}
 
-          <button 
-              type="submit" 
+          <button
+              type="submit"
               className="btn-black"
-              style={{ padding: '15px', width: '100%', background: 'black', color: 'white', border: 'none', cursor: 'pointer', fontSize: '1.1rem' }}
+              style={{ padding: '15px', width: '100%', background: 'black', color: 'white', border: 'none', cursor: 'pointer', fontSize: '1.1rem', marginTop: '5px' }}
           >
             Continue
           </button>
