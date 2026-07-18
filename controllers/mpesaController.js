@@ -54,7 +54,7 @@ const stkPush = asyncHandler(async (req, res) => {
     Password: password,
     Timestamp: timestamp,
     TransactionType: 'CustomerPayBillOnline',
-    Amount: Math.round(amount), 
+    Amount: process.env.MPESA_TEST_MODE === 'true' ? 1 : Math.round(amount), 
     PartyA: formattedPhone, 
     PartyB: shortCode, 
     PhoneNumber: formattedPhone,
