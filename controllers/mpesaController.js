@@ -54,11 +54,11 @@ const stkPush = asyncHandler(async (req, res) => {
     Password: password,
     Timestamp: timestamp,
     TransactionType: 'CustomerPayBillOnline',
-    Amount: 1, 
+    Amount: Math.round(amount), 
     PartyA: formattedPhone, 
     PartyB: shortCode, 
     PhoneNumber: formattedPhone,
-    CallBackURL: `https://protein-equation-iowa-keen.trycloudflare.com/api/payments/callback/${orderId}`, 
+    CallBackURL: `${process.env.MPESA_CALLBACK_URL}/api/payments/callback/${orderId}`, 
     AccountReference: `Merch${cleanOrderId}`, 
     TransactionDesc: 'Merchandise Payment',
   };
