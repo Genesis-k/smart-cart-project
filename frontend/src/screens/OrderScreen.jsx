@@ -169,8 +169,8 @@ const OrderScreen = () => {
               <div style={{ padding: '15px', background: '#f8d7da', color: '#721c24', borderRadius: '5px' }}>Not Paid</div>
             )}
 
-            {/* Delivery expectation message - shown once paid, until marked delivered */}
-            {order.isPaid && !order.isDelivered && (
+            {/* Delivery expectation message - customer view only, shown once paid until marked delivered */}
+            {order.isPaid && !order.isDelivered && !userInfo?.isAdmin && (
               <div style={{ marginTop: '15px', padding: '15px', background: '#e8f4fd', color: '#0c5480', borderRadius: '5px', fontSize: '0.95rem', lineHeight: '1.6' }}>
                 <strong>What happens next?</strong><br />
                 Your payment has been received and your order is being prepared for dispatch. Please allow <strong>2-3 business days</strong> for delivery.
