@@ -34,6 +34,7 @@ import AnalysisScreen from './screens/admin/AnalysisScreen';
 import ReviewListScreen from './screens/admin/ReviewListScreen';
 import BannerEditScreen from './screens/admin/BannerEditScreen';
 import AdminPendingOrdersBanner from './components/AdminPendingOrdersBanner';
+import AdminPendingReviewsBanner from './components/AdminPendingReviewsBanner';
 
 const App = () => {
   const { userInfo } = useSelector((state) => state.auth);
@@ -52,8 +53,9 @@ const App = () => {
       <DiscountBanner />
       <Header />
       <AdminPendingOrdersBanner />
+      <AdminPendingReviewsBanner />
       <LoginPopup />
-      
+
       {/* SEARCH BAR SECTION */}
       {shouldShowSearch && (
         <div style={{ backgroundColor: '#f8f9fa', padding: '15px 0', borderBottom: '1px solid #ddd' }}>
