@@ -9,8 +9,12 @@ const AdminOrderListScreen = () => {
   const [error, setError] = useState(null);
 
   const { userInfo } = useSelector((state) => state.auth);
+
+  // Filters
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // all | pending-delivery | delivered | not-delivered
+  const [paidFilter, setPaidFilter] = useState('all'); // all | paid | unpaid
 
   const fetchOrders = async () => {
     try {
@@ -29,30 +33,62 @@ const AdminOrderListScreen = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (loading) return <h2>Loading orders...</h2>;
-  if (error) return <h2 style={{ color: 'red' }}>{error}</h2>;
+  // Apply all filters
+  const filteredOrders = orders.filter((order) => {
+    // Date range filter
+    if (order.createdAt) {
+      const orderDate = order.createdAt.substring(0, 10); // YYYY-MM-DD
+      if (dateFrom && orderDate < dateFrom) return false;
+      if (dateTo && orderDate > dateTo) return false;
+    }
 
-  // Apply date range filter first (if set), then sort
-  const dateFilteredOrders = orders.filter((order) => {
-    if (!order.createdAt) return true;
-    const orderDate = order.createdAt.substring(0, 10); // YYYY-MM-DD
-    if (dateFrom && orderDate < dateFrom) return false;
-    if (dateTo && orderDate > dateTo) return false;
+    // Status filter
+    if (statusFilter === 'pending-delivery') {
+      // Paid but not yet delivered — needs action
+      if (!(order.isPaid && !order.isDelivered)) return false;
+    } else if (statusFilter === 'delivered') {
+      if (!order.isDelivered) return false;
+    } else if (statusFilter === 'not-delivered') {
+      if (order.isDelivered) return false;
+    }
+    // 'all' passes everything
+
+    // Paid/Unpaid toggle
+    if (paidFilter === 'paid') {
+      if (!order.isPaid) return false;
+    } else if (paidFilter === 'unpaid') {
+      if (order.isPaid) return false;
+    }
+    // 'all' passes everything
+
     return true;
   });
 
-  // Show orders needing action first: paid but not yet delivered
-  const sortedOrders = [...dateFilteredOrders].sort((a, b) => {
+  // Sort: pending-delivery first, then newest
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
     const aPending = a.isPaid && !a.isDelivered;
     const bPending = b.isPaid && !b.isDelivered;
     if (aPending === bPending) return new Date(b.createdAt) - new Date(a.createdAt);
     return aPending ? -1 : 1;
   });
 
+  const hasActiveFilters = dateFrom || dateTo || statusFilter !== 'all' || paidFilter !== 'all';
+
+  const clearAllFilters = () => {
+    setDateFrom('');
+    setDateTo('');
+    setStatusFilter('all');
+    setPaidFilter('all');
+  };
+
+  if (loading) return <h2>Loading orders...</h2>;
+  if (error) return <h2 style={{ color: 'red' }}>{error}</h2>;
+
   return (
     <div>
       <h1 style={{ marginBottom: '25px' }}>All Orders</h1>
 
+      {/* Filter Row */}
       <div style={styles.filterRow}>
         <div>
           <label style={styles.filterLabel}>From</label>
@@ -72,12 +108,34 @@ const AdminOrderListScreen = () => {
             style={styles.dateInput}
           />
         </div>
-        {(dateFrom || dateTo) && (
-          <button
-            onClick={() => { setDateFrom(''); setDateTo(''); }}
-            style={styles.clearFilterBtn}
+        <div>
+          <label style={styles.filterLabel}>Status</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={styles.selectInput}
           >
-            Clear Filter
+            <option value="all">All Statuses</option>
+            <option value="pending-delivery">Paid &amp; Awaiting Delivery</option>
+            <option value="delivered">Delivered</option>
+            <option value="not-delivered">Not Delivered</option>
+          </select>
+        </div>
+        <div>
+          <label style={styles.filterLabel}>Payment</label>
+          <select
+            value={paidFilter}
+            onChange={(e) => setPaidFilter(e.target.value)}
+            style={styles.selectInput}
+          >
+            <option value="all">All Payments</option>
+            <option value="paid">Paid</option>
+            <option value="unpaid">Unpaid</option>
+          </select>
+        </div>
+        {hasActiveFilters && (
+          <button onClick={clearAllFilters} style={styles.clearFilterBtn}>
+            Clear All Filters
           </button>
         )}
         <span style={styles.filterCount}>
@@ -85,6 +143,7 @@ const AdminOrderListScreen = () => {
         </span>
       </div>
 
+      {/* Orders Table */}
       <div style={{ overflowX: 'auto' }}>
         <table style={styles.table}>
           <thead>
@@ -142,8 +201,10 @@ const AdminOrderListScreen = () => {
         </table>
       </div>
 
-      {orders.length === 0 && (
-        <p style={{ color: '#666', marginTop: '20px' }}>No orders yet.</p>
+      {sortedOrders.length === 0 && (
+        <p style={{ color: '#666', marginTop: '20px' }}>
+          {hasActiveFilters ? 'No orders match your filters.' : 'No orders yet.'}
+        </p>
       )}
     </div>
   );
@@ -205,6 +266,14 @@ const styles = {
     borderRadius: '5px',
     border: '1px solid #ccc',
     fontSize: '0.9rem',
+  },
+  selectInput: {
+    padding: '8px 10px',
+    borderRadius: '5px',
+    border: '1px solid #ccc',
+    fontSize: '0.9rem',
+    backgroundColor: '#fff',
+    cursor: 'pointer',
   },
   clearFilterBtn: {
     padding: '9px 16px',
