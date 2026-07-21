@@ -1,6 +1,7 @@
 const axios = require('axios');
 const asyncHandler = require('express-async-handler');
-const Order = require('../models/orderModel'); 
+const Order = require('../models/orderModel');
+const Product = require('../models/productModel'); // ADD THIS IMPORT
 
 // 1. Generate Access Token
 const getAccessToken = async () => {
@@ -22,9 +23,9 @@ const getAccessToken = async () => {
 
 // 2. Trigger STK Push
 const stkPush = asyncHandler(async (req, res) => {
-  const { phone, amount, orderId } = req.body; 
+  const { phone, amount, orderId } = req.body;
   const token = await getAccessToken();
-  
+
   const date = new Date();
   const timestamp =
     date.getFullYear() +
@@ -34,32 +35,31 @@ const stkPush = asyncHandler(async (req, res) => {
     ('0' + date.getMinutes()).slice(-2) +
     ('0' + date.getSeconds()).slice(-2);
 
-  const shortCode = process.env.MPESA_SHORTCODE; 
+  const shortCode = process.env.MPESA_SHORTCODE;
   const passkey = process.env.MPESA_PASSKEY;
   const password = Buffer.from(shortCode + passkey + timestamp).toString('base64');
 
   const stk_url = 'https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest';
 
-  // Format phone number safely
-  const formattedPhone = phone.startsWith('0') 
-    ? '254' + phone.substring(1) 
+  const formattedPhone = phone.startsWith('0')
+    ? '254' + phone.substring(1)
     : phone.startsWith('+')
     ? phone.substring(1)
     : phone;
 
-  const cleanOrderId = orderId.toString().substring(0, 10); 
+  const cleanOrderId = orderId.toString().substring(0, 10);
 
   const data = {
     BusinessShortCode: shortCode,
     Password: password,
     Timestamp: timestamp,
     TransactionType: 'CustomerPayBillOnline',
-    Amount: process.env.MPESA_TEST_MODE === 'true' ? 1 : Math.round(amount), 
-    PartyA: formattedPhone, 
-    PartyB: shortCode, 
+    Amount: process.env.MPESA_TEST_MODE === 'true' ? 1 : Math.round(amount),
+    PartyA: formattedPhone,
+    PartyB: shortCode,
     PhoneNumber: formattedPhone,
-    CallBackURL: `${process.env.MPESA_CALLBACK_URL}/api/payments/callback/${orderId}`, 
-    AccountReference: `Merch${cleanOrderId}`, 
+    CallBackURL: `${process.env.MPESA_CALLBACK_URL}/api/payments/callback/${orderId}`,
+    AccountReference: `Merch${cleanOrderId}`,
     TransactionDesc: 'Merchandise Payment',
   };
 
@@ -69,7 +69,7 @@ const stkPush = asyncHandler(async (req, res) => {
     const response = await axios.post(stk_url, data, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    
+
     res.json(response.data);
 
   } catch (error) {
@@ -80,10 +80,9 @@ const stkPush = asyncHandler(async (req, res) => {
 });
 
 // 3. Handle Safaricom's Callback
-// Notice we removed asyncHandler here so we can manually control the response and catch errors without crashing!
 const mpesaCallback = async (req, res) => {
   console.log('--- M-PESA CALLBACK HIT ---');
-  
+
   // 1. INSTANTLY respond to Safaricom to prevent reversals!
   res.status(200).json({
     ResultCode: 0,
@@ -92,16 +91,16 @@ const mpesaCallback = async (req, res) => {
 
   // 2. Now process the database update in the background
   try {
-    const orderId = req.params.id; 
+    const orderId = req.params.id;
     const callbackData = req.body.Body.stkCallback;
-    
+
     if (callbackData.ResultCode === 0) {
       // Payment was successful, extract the data
       const metadata = callbackData.CallbackMetadata.Item;
       const mpesaReceipt = metadata.find(item => item.Name === 'MpesaReceiptNumber').Value;
-      
+
       console.log(`Success! Receipt: ${mpesaReceipt} for Order: ${orderId}`);
-      
+
       // Find the Order in MongoDB
       const order = await Order.findById(orderId);
 
@@ -118,16 +117,27 @@ const mpesaCallback = async (req, res) => {
 
         await order.save();
         console.log('Database updated successfully! Order marked as paid.');
+
+        // ══════════════════════════════════════════
+        // DEDUCT STOCK FOR EACH ITEM IN THE ORDER
+        // ══════════════════════════════════════════
+        for (const item of order.orderItems) {
+          const product = await Product.findById(item.product);
+          if (product) {
+            product.countInStock = product.countInStock - item.qty;
+            if (product.countInStock < 0) product.countInStock = 0;
+            await product.save();
+            console.log(`Stock updated: ${product.name} now has ${product.countInStock} left`);
+          }
+        }
       } else {
         console.error('Order not found in database!');
       }
 
     } else {
-      // Customer cancelled, insufficient funds, or timed out.
       console.log('Payment Failed:', callbackData.ResultDesc);
     }
   } catch (error) {
-    // If the database fails, it logs the error here without crashing the server
     console.error("Error processing Safaricom database update:", error.message);
   }
 };
