@@ -104,6 +104,17 @@ const getTopProducts = asyncHandler(async (req, res) => {
   res.json(products);
 });
 
+// @desc    Get products at or below the low-stock threshold, for the admin restock reminder
+// @route   GET /api/products/low-stock
+// @access  Private/Admin
+const getLowStockProducts = asyncHandler(async (req, res) => {
+  const LOW_STOCK_THRESHOLD = 5;
+  const products = await Product.find({ countInStock: { $lte: LOW_STOCK_THRESHOLD } })
+    .sort({ countInStock: 1 })
+    .select('name countInStock image');
+  res.json(products);
+});
+
 // --- ADMIN REVIEW FUNCTIONS ---
 
 // @desc    Get ALL reviews from ALL products
@@ -181,6 +192,7 @@ module.exports = {
   updateProduct,
   createProductReview,
   getTopProducts,
+  getLowStockProducts,
   getAllReviews,
   updateReviewStatus,
   deleteReview,

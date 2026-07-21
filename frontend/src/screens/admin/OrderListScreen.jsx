@@ -9,6 +9,8 @@ const AdminOrderListScreen = () => {
   const [error, setError] = useState(null);
 
   const { userInfo } = useSelector((state) => state.auth);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const fetchOrders = async () => {
     try {
@@ -30,8 +32,17 @@ const AdminOrderListScreen = () => {
   if (loading) return <h2>Loading orders...</h2>;
   if (error) return <h2 style={{ color: 'red' }}>{error}</h2>;
 
+  // Apply date range filter first (if set), then sort
+  const dateFilteredOrders = orders.filter((order) => {
+    if (!order.createdAt) return true;
+    const orderDate = order.createdAt.substring(0, 10); // YYYY-MM-DD
+    if (dateFrom && orderDate < dateFrom) return false;
+    if (dateTo && orderDate > dateTo) return false;
+    return true;
+  });
+
   // Show orders needing action first: paid but not yet delivered
-  const sortedOrders = [...orders].sort((a, b) => {
+  const sortedOrders = [...dateFilteredOrders].sort((a, b) => {
     const aPending = a.isPaid && !a.isDelivered;
     const bPending = b.isPaid && !b.isDelivered;
     if (aPending === bPending) return new Date(b.createdAt) - new Date(a.createdAt);
@@ -41,6 +52,38 @@ const AdminOrderListScreen = () => {
   return (
     <div>
       <h1 style={{ marginBottom: '25px' }}>All Orders</h1>
+
+      <div style={styles.filterRow}>
+        <div>
+          <label style={styles.filterLabel}>From</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            style={styles.dateInput}
+          />
+        </div>
+        <div>
+          <label style={styles.filterLabel}>To</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            style={styles.dateInput}
+          />
+        </div>
+        {(dateFrom || dateTo) && (
+          <button
+            onClick={() => { setDateFrom(''); setDateTo(''); }}
+            style={styles.clearFilterBtn}
+          >
+            Clear Filter
+          </button>
+        )}
+        <span style={styles.filterCount}>
+          Showing {sortedOrders.length} of {orders.length} orders
+        </span>
+      </div>
 
       <div style={{ overflowX: 'auto' }}>
         <table style={styles.table}>
@@ -142,6 +185,41 @@ const styles = {
     textDecoration: 'none',
     fontSize: '0.85rem',
     fontWeight: 'bold',
+  },
+  filterRow: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    gap: '20px',
+    marginBottom: '20px',
+    flexWrap: 'wrap',
+  },
+  filterLabel: {
+    display: 'block',
+    fontSize: '0.85rem',
+    color: '#666',
+    marginBottom: '4px',
+    fontWeight: 'bold',
+  },
+  dateInput: {
+    padding: '8px 10px',
+    borderRadius: '5px',
+    border: '1px solid #ccc',
+    fontSize: '0.9rem',
+  },
+  clearFilterBtn: {
+    padding: '9px 16px',
+    background: '#f8f9fa',
+    border: '1px solid #ddd',
+    borderRadius: '5px',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    fontWeight: 'bold',
+    color: '#555',
+  },
+  filterCount: {
+    marginLeft: 'auto',
+    fontSize: '0.85rem',
+    color: '#888',
   },
 };
 

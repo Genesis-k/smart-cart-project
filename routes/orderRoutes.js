@@ -8,7 +8,8 @@ const {
   updateOrderToUnDelivered,
   getOrders,
   getMyOrders,
-  checkCanReview, // <-- this was missing, which caused the crash
+  checkCanReview,
+  getReviewableItems,
 } = require('../controllers/orderController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
@@ -17,6 +18,7 @@ router.route('/')
   .get(protect, admin, getOrders);
 
 router.get('/can-review/:productId', protect, checkCanReview);
+router.get('/reviewable-items', protect, getReviewableItems);
 
 // IMPORTANT: This route must be ABOVE the /:id route.
 router.route('/myorders').get(protect, getMyOrders);

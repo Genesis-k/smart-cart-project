@@ -1,6 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const Order = require('../models/orderModel');
-const Product = require('../models/productModel'); // Import Product model
+const Product = require('../models/productModel');
 
 /**
  * @desc    Create new order
@@ -81,20 +81,16 @@ const updateOrderToPaid = asyncHandler(async (req, res) => {
 
     const updatedOrder = await order.save();
 
-    // --- NEW: DECREMENT STOCK ---
-    // Loop through order items and reduce stock in database
     for (const index in order.orderItems) {
       const item = order.orderItems[index];
       const product = await Product.findById(item.product);
-      
+
       if (product) {
         product.countInStock = product.countInStock - item.qty;
-        // Ensure stock doesn't go below zero
         if (product.countInStock < 0) product.countInStock = 0;
         await product.save();
       }
     }
-    // ----------------------------
 
     res.json(updatedOrder);
   } else {
@@ -162,6 +158,11 @@ const getMyOrders = asyncHandler(async (req, res) => {
   res.json(orders);
 });
 
+/**
+ * @desc    Check if the logged-in user can review a specific product
+ * @route   GET /api/orders/can-review/:productId
+ * @access  Private
+ */
 const checkCanReview = asyncHandler(async (req, res) => {
   const { productId } = req.params;
 
@@ -182,6 +183,51 @@ const checkCanReview = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @desc    Get all delivered items belonging to the logged-in user that they
+ *          haven't reviewed yet - powers the "please review your purchase" reminder
+ * @route   GET /api/orders/reviewable-items
+ * @access  Private
+ */
+const getReviewableItems = asyncHandler(async (req, res) => {
+  const deliveredOrders = await Order.find({
+    user: req.user._id,
+    isDelivered: true,
+  });
+
+  // Collect unique products across all of this user's delivered orders
+  const productMap = new Map();
+  deliveredOrders.forEach((order) => {
+    order.orderItems.forEach((item) => {
+      productMap.set(item.product.toString(), {
+        productId: item.product,
+        name: item.name,
+        image: item.image,
+      });
+    });
+  });
+
+  const productIds = Array.from(productMap.keys());
+
+  if (productIds.length === 0) {
+    return res.json([]);
+  }
+
+  // Find which of those products this user has already reviewed
+  const alreadyReviewedProducts = await Product.find({
+    _id: { $in: productIds },
+    'reviews.user': req.user._id,
+  }).select('_id');
+
+  const reviewedIds = new Set(alreadyReviewedProducts.map((p) => p._id.toString()));
+
+  const reviewableItems = productIds
+    .filter((id) => !reviewedIds.has(id))
+    .map((id) => productMap.get(id));
+
+  res.json(reviewableItems);
+});
+
 module.exports = {
   addOrderItems,
   getOrderById,
@@ -191,4 +237,5 @@ module.exports = {
   getOrders,
   getMyOrders,
   checkCanReview,
+  getReviewableItems,
 };

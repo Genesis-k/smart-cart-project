@@ -21,7 +21,6 @@ const ProductListScreen = () => {
   const fetchProducts = async () => {
     try {
       const { data } = await axios.get(`/api/products?pageNumber=${pageNumber}`);
-      // Fixed: Extract array from the object returned by the Canvas logic
       setProducts(data.products);
       setPage(data.page);
       setPages(data.pages);
@@ -46,7 +45,7 @@ const ProductListScreen = () => {
         setLoadingDelete(true);
         await axios.delete(`/api/products/${id}`);
         setLoadingDelete(false);
-        fetchProducts(); 
+        fetchProducts();
       } catch (err) {
         alert(err.response?.data?.message || 'Error deleting product');
         setLoadingDelete(false);
@@ -57,13 +56,26 @@ const ProductListScreen = () => {
   const createProductHandler = async () => {
     try {
       setLoadingCreate(true);
-      const { data: createdProduct } = await axios.post('/api/products', {}); 
+      const { data: createdProduct } = await axios.post('/api/products', {});
       setLoadingCreate(false);
       navigate(`/admin/product/${createdProduct._id}/edit`);
     } catch (err) {
       alert(err.response?.data?.message || 'Error creating product');
       setLoadingCreate(false);
     }
+  };
+
+  // Same ≤5 threshold used everywhere else in the app (customer low-stock warning, restock banner)
+  const getStockStyle = (count) => {
+    if (count === 0) return { color: '#c0392b', fontWeight: 'bold' };
+    if (count <= 5) return { color: '#e67e22', fontWeight: 'bold' };
+    return { color: '#333' };
+  };
+
+  const getStockLabel = (count) => {
+    if (count === 0) return `${count} - Out of stock`;
+    if (count <= 5) return `${count} - Low stock`;
+    return count;
   };
 
   if (loading) return <h2>Loading...</h2>;
@@ -73,8 +85,8 @@ const ProductListScreen = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Products</h1>
-        <button 
-            className="btn-black" 
+        <button
+            className="btn-black"
             onClick={createProductHandler}
             style={{ padding: '10px', background: 'black', color: 'white', border: 'none', cursor: 'pointer' }}
         >
@@ -90,6 +102,7 @@ const ProductListScreen = () => {
             <th style={{ padding: '10px', border: '1px solid #ddd' }}>ID</th>
             <th style={{ padding: '10px', border: '1px solid #ddd' }}>NAME</th>
             <th style={{ padding: '10px', border: '1px solid #ddd' }}>PRICE</th>
+            <th style={{ padding: '10px', border: '1px solid #ddd' }}>STOCK</th>
             <th style={{ padding: '10px', border: '1px solid #ddd' }}>SECTION</th>
             <th style={{ padding: '10px', border: '1px solid #ddd' }}>CATEGORY</th>
             <th style={{ padding: '10px', border: '1px solid #ddd' }}>ACTIONS</th>
@@ -97,17 +110,23 @@ const ProductListScreen = () => {
         </thead>
         <tbody>
           {products.map((product) => (
-            <tr key={product._id}>
+            <tr
+              key={product._id}
+              style={product.countInStock <= 5 ? { backgroundColor: '#fff9f2' } : {}}
+            >
               <td style={{ padding: '10px', border: '1px solid #ddd' }}>{product._id.substring(0, 10)}...</td>
               <td style={{ padding: '10px', border: '1px solid #ddd' }}>{product.name}</td>
               <td style={{ padding: '10px', border: '1px solid #ddd' }}>KSh {product.price}</td>
+              <td style={{ padding: '10px', border: '1px solid #ddd', ...getStockStyle(product.countInStock) }}>
+                {getStockLabel(product.countInStock)}
+              </td>
               <td style={{ padding: '10px', border: '1px solid #ddd' }}>{product.section}</td>
               <td style={{ padding: '10px', border: '1px solid #ddd' }}>{product.category}</td>
               <td style={{ padding: '10px', border: '1px solid #ddd' }}>
                 <Link to={`/admin/product/${product._id}/edit`}>
                   <button style={{ marginRight: '10px', cursor: 'pointer', padding: '5px 10px' }}>Edit</button>
                 </Link>
-                <button 
+                <button
                     style={{ color: 'red', cursor: 'pointer', padding: '5px 10px' }}
                     onClick={() => deleteHandler(product._id)}
                 >

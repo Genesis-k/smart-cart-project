@@ -8,6 +8,7 @@ const {
   updateProduct,
   createProductReview,
   getTopProducts,
+  getLowStockProducts, // Import
   getAllReviews, // Import
   updateReviewStatus, // Import
   deleteReview, // Import
@@ -21,6 +22,9 @@ router.route('/')
 
 // Top Products
 router.get('/top', getTopProducts);
+
+// Low Stock Products (admin restock reminder) - must be before /:id
+router.get('/low-stock', protect, admin, getLowStockProducts);
 
 // NEW: Admin Review Management Routes
 // Get ALL reviews (Must be before /:id)
