@@ -33,10 +33,9 @@ import ProductEditScreen from './screens/admin/ProductEditScreen';
 import AnalysisScreen from './screens/admin/AnalysisScreen';
 import ReviewListScreen from './screens/admin/ReviewListScreen';
 import BannerEditScreen from './screens/admin/BannerEditScreen';
-import AdminPendingOrdersBanner from './components/AdminPendingOrdersBanner';
-import AdminPendingReviewsBanner from './components/AdminPendingReviewsBanner';
+import AdminNotificationBanner from './components/AdminNotificationBanner';
 import CustomerReviewReminderBanner from './components/CustomerReviewReminderBanner';
-import AdminLowStockBanner from './components/AdminLowStockBanner';
+
 
 const App = () => {
   const { userInfo } = useSelector((state) => state.auth);
@@ -54,9 +53,7 @@ const App = () => {
     <>
       <DiscountBanner />
       <Header />
-      <AdminPendingOrdersBanner />
-      <AdminPendingReviewsBanner />
-      <AdminLowStockBanner />
+      <AdminNotificationBanner />
       <CustomerReviewReminderBanner />
       <LoginPopup />
 

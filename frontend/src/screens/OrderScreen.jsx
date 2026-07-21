@@ -250,7 +250,7 @@ const OrderScreen = () => {
               <span>Total</span><span>KSh {order.totalPrice}</span>
             </div>
 
-            {!order.isPaid && (
+            {!order.isPaid && !userInfo?.isAdmin && (
               <div style={{ marginTop: '20px' }}>
                 {PAYPAL_ENABLED && order.paymentMethod === 'PayPal' && (
                   isPending ? (
